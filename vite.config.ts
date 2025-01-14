@@ -7,4 +7,8 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
+  server: {
+    port: 5173,    // Ensure Vite uses port 5173
+    strictPort: true,  // Ensure Vite doesn't try to use another port if 5173 is taken
+  },
 });
