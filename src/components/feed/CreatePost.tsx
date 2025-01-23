@@ -1,10 +1,18 @@
-import React, { useState } from 'react';
-import { Image, FileText, X, Loader, Package2, MessageSquare, Video } from 'lucide-react';
-import axios from 'axios';
+import React, { useState } from "react";
+import {
+  Image,
+  FileText,
+  X,
+  Loader,
+  Package2,
+  MessageSquare,
+  Video,
+} from "lucide-react";
+import axios from "axios";
 
 interface CreatePostProps {
   onSubmit?: (data: {
-    type: 'update' | 'product';
+    type: "update" | "product";
     content: string;
     attachments: File[];
     productDetails?: {
@@ -20,45 +28,46 @@ interface CreatePostProps {
 }
 
 const CATEGORIES = [
-  'Food & Beverage',
-  'Electronics',
-  'Textiles',
-  'Machinery',
-  'Chemicals',
-  'Construction',
-  'Agriculture'
+  "Food & Beverage",
+  "Electronics",
+  "Textiles",
+  "Machinery",
+  "Chemicals",
+  "Construction",
+  "Agriculture",
 ];
 
 const TAGS = [
-  'Sustainable',
-  'Organic',
-  'Fair Trade',
-  'Premium',
-  'New Arrival',
-  'Best Seller',
-  'Limited Stock',
-  'Bulk Available'
+  "Sustainable",
+  "Organic",
+  "Fair Trade",
+  "Premium",
+  "New Arrival",
+  "Best Seller",
+  "Limited Stock",
+  "Bulk Available",
 ];
 
 export function CreatePost({ onSubmit }: CreatePostProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [postType, setPostType] = useState<'update' | 'product'>('update');
-  const [content, setContent] = useState('');
+  const [postType, setPostType] = useState<"update" | "product">("update");
+  const [content, setContent] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const userId = "64a7b2c9e4b0ab1c2d8e6f4d";
   const [characterCount, setCharacterCount] = useState(0);
 
   // Product form state
   const [productDetails, setProductDetails] = useState({
-    name: '',
-    category: '',
+    name: "",
+    category: "",
     price: { min: 0, max: 0 },
     moq: 0,
     stock: 0,
-    expiryDate: '',
-    tags: [] as string[]
+    expiryDate: "",
+    tags: [] as string[],
   });
 
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -72,19 +81,19 @@ export function CreatePost({ onSubmit }: CreatePostProps) {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length + attachments.length <= 5) {
-      setAttachments(prev => [...prev, ...files]);
+      setAttachments((prev) => [...prev, ...files]);
     }
   };
 
   const removeAttachment = (index: number) => {
-    setAttachments(prev => prev.filter((_, i) => i !== index));
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
 
   const toggleTag = (tag: string) => {
     if (selectedTags.includes(tag)) {
-      setSelectedTags(prev => prev.filter(t => t !== tag));
+      setSelectedTags((prev) => prev.filter((t) => t !== tag));
     } else if (selectedTags.length < 3) {
-      setSelectedTags(prev => [...prev, tag]);
+      setSelectedTags((prev) => [...prev, tag]);
     }
   };
 
@@ -98,35 +107,48 @@ export function CreatePost({ onSubmit }: CreatePostProps) {
 
       // Structure the data to match your MongoDB schema
       const postData = {
-        type: postType === 'product' ? 'product' : 'update',
+        type: postType === "product" ? "product" : "update",
         content: content.trim(),
         tags: selectedTags,
-        ...(postType === 'product' && { productDetails })
+        authorId: userId, // Include the authorId here, replace userId with the actual user ID
+        ...(postType === "product" && { productDetails }),
       };
 
-      formData.append('type', postData.type);
-      formData.append('content', postData.content);
-      formData.append('tags', JSON.stringify(postData.tags));
+      formData.append("type", postData.type);
+      formData.append("content", postData.content);
+      postData.tags.forEach((tag) => {
+        formData.append("tags[]", tag);
+      });
 
-      if (postType === 'product') {
-        formData.append('productDetails', JSON.stringify(productDetails));
+      formData.append("authorId", postData.authorId);
+
+      if (postType === "product") {
+        formData.append("productDetails", JSON.stringify(productDetails));
       }
 
       // Append attachments
-      attachments.forEach(file => {
-        formData.append('attachments', file);
+      attachments.forEach((file) => {
+        formData.append("attachments", file);
       });
 
       // Get token from localStorage (or from your global state)
-      const token = localStorage.getItem('token'); // replace with your token retrieval logic
+      const token = localStorage.getItem("token"); // replace with your token retrieval logic
 
       // Send to backend with token in the Authorization header
-      const response = await axios.post('http://localhost:5000/posts', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          Authorization: `Bearer ${token}`
+      const response = await axios.post(
+        "http://localhost:5000/posts",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${token}`,
+          },
         }
-      });
+      );
+      
+      console.log("Response from server:", response.data);
+      alert("Your post was successfully submitted!");
+
 
       if (response.data) {
         // Only call onSubmit if it exists
@@ -135,32 +157,33 @@ export function CreatePost({ onSubmit }: CreatePostProps) {
             type: postType,
             content,
             attachments,
-            productDetails: postType === 'product' ? productDetails : undefined
+            productDetails: postType === "product" ? productDetails : undefined,
           });
         }
 
         // Reset form state
-        setContent('');
+        setContent("");
         setAttachments([]);
         setSelectedTags([]);
         setProductDetails({
-          name: '',
-          category: '',
+          name: "",
+          category: "",
           price: { min: 0, max: 0 },
           moq: 0,
           stock: 0,
-          expiryDate: '',
-          tags: []
+          expiryDate: "",
+          tags: [],
         });
         setIsExpanded(false);
       }
     } catch (error) {
-      console.error('Error creating post:', error);
+      console.error("Error creating post:", error);
       if (axios.isAxiosError(error)) {
-        const errorMessage = error.response?.data?.message || 'Error creating post!';
+        const errorMessage =
+          error.response?.data?.message || "Error creating post!";
         alert(errorMessage);
       } else {
-        alert('Error creating post!');
+        alert("Error creating post!");
       }
     } finally {
       setIsSubmitting(false);
@@ -169,7 +192,7 @@ export function CreatePost({ onSubmit }: CreatePostProps) {
 
   if (!isExpanded) {
     return (
-      <div 
+      <div
         onClick={() => setIsExpanded(true)}
         className="bg-white rounded-lg shadow-sm p-4 cursor-pointer hover:bg-gray-50 transition-colors mb-6"
       >
@@ -193,21 +216,32 @@ export function CreatePost({ onSubmit }: CreatePostProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm p-6 mb-6">
+    <form
+      onSubmit={handleSubmit}
+      className="bg-white rounded-lg shadow-sm p-6 mb-6"
+    >
       <div className="flex items-center justify-between mb-4">
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => setPostType('update')}
-            className={`px-4 py-2 rounded-lg flex items-center gap-2 ${postType === 'update' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            onClick={() => setPostType("update")}
+            className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+              postType === "update"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
           >
             <MessageSquare className="w-4 h-4" />
             Share Update
           </button>
           <button
             type="button"
-            onClick={() => setPostType('product')}
-            className={`px-4 py-2 rounded-lg flex items-center gap-2 ${postType === 'product' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            onClick={() => setPostType("product")}
+            className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
+              postType === "product"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
           >
             <Package2 className="w-4 h-4" />
             Add Product
@@ -222,14 +256,18 @@ export function CreatePost({ onSubmit }: CreatePostProps) {
         </button>
       </div>
 
-      {postType === 'product' && (
+      {postType === "product" && (
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Product Name
+            </label>
             <input
               type="text"
               value={productDetails.name}
-              onChange={(e) => setProductDetails(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(e) =>
+                setProductDetails((prev) => ({ ...prev, name: e.target.value }))
+              }
               maxLength={50}
               className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Enter product name"
@@ -238,32 +276,45 @@ export function CreatePost({ onSubmit }: CreatePostProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Category
+            </label>
             <select
               value={productDetails.category}
-              onChange={(e) => setProductDetails(prev => ({ ...prev, category: e.target.value }))}
+              onChange={(e) =>
+                setProductDetails((prev) => ({
+                  ...prev,
+                  category: e.target.value,
+                }))
+              }
               className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
             >
               <option value="">Select category</option>
-              {CATEGORIES.map(category => (
-                <option key={category} value={category}>{category}</option>
+              {CATEGORIES.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
               ))}
             </select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Min Price (USD)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Min Price (USD)
+              </label>
               <input
                 type="number"
                 min="0"
                 step="0.01"
                 value={productDetails.price.min}
-                onChange={(e) => setProductDetails(prev => ({
-                  ...prev,
-                  price: { ...prev.price, min: parseFloat(e.target.value) }
-                }))}
+                onChange={(e) =>
+                  setProductDetails((prev) => ({
+                    ...prev,
+                    price: { ...prev.price, min: parseFloat(e.target.value) },
+                  }))
+                }
                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Min Price"
                 required
@@ -271,16 +322,20 @@ export function CreatePost({ onSubmit }: CreatePostProps) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Max Price (USD)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Max Price (USD)
+              </label>
               <input
                 type="number"
                 min="0"
                 step="0.01"
                 value={productDetails.price.max}
-                onChange={(e) => setProductDetails(prev => ({
-                  ...prev,
-                  price: { ...prev.price, max: parseFloat(e.target.value) }
-                }))}
+                onChange={(e) =>
+                  setProductDetails((prev) => ({
+                    ...prev,
+                    price: { ...prev.price, max: parseFloat(e.target.value) },
+                  }))
+                }
                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Max Price"
                 required
@@ -289,12 +344,19 @@ export function CreatePost({ onSubmit }: CreatePostProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">MOQ (Minimum Order Quantity)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              MOQ (Minimum Order Quantity)
+            </label>
             <input
               type="number"
               min="1"
               value={productDetails.moq}
-              onChange={(e) => setProductDetails(prev => ({ ...prev, moq: parseInt(e.target.value, 10) }))}
+              onChange={(e) =>
+                setProductDetails((prev) => ({
+                  ...prev,
+                  moq: parseInt(e.target.value, 10),
+                }))
+              }
               className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="MOQ"
               required
@@ -302,12 +364,19 @@ export function CreatePost({ onSubmit }: CreatePostProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Stock Availability</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Stock Availability
+            </label>
             <input
               type="number"
               min="0"
               value={productDetails.stock}
-              onChange={(e) => setProductDetails(prev => ({ ...prev, stock: parseInt(e.target.value, 10) }))}
+              onChange={(e) =>
+                setProductDetails((prev) => ({
+                  ...prev,
+                  stock: parseInt(e.target.value, 10),
+                }))
+              }
               className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Available Stock"
               required
@@ -315,11 +384,18 @@ export function CreatePost({ onSubmit }: CreatePostProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Expiry Date
+            </label>
             <input
               type="date"
               value={productDetails.expiryDate}
-              onChange={(e) => setProductDetails(prev => ({ ...prev, expiryDate: e.target.value }))}
+              onChange={(e) =>
+                setProductDetails((prev) => ({
+                  ...prev,
+                  expiryDate: e.target.value,
+                }))
+              }
               className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
@@ -327,7 +403,9 @@ export function CreatePost({ onSubmit }: CreatePostProps) {
       )}
 
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Content</label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Content
+        </label>
         <textarea
           value={content}
           onChange={handleContentChange}
@@ -339,23 +417,29 @@ export function CreatePost({ onSubmit }: CreatePostProps) {
           <span>{characterCount} / 500</span>
           <button
             type="button"
-            onClick={() => setShowPreview(prev => !prev)}
+            onClick={() => setShowPreview((prev) => !prev)}
             className="hover:text-blue-500"
           >
-            {showPreview ? 'Hide Preview' : 'Show Preview'}
+            {showPreview ? "Hide Preview" : "Show Preview"}
           </button>
         </div>
       </div>
 
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Tags
+        </label>
         <div className="flex gap-2 flex-wrap">
-          {TAGS.map(tag => (
+          {TAGS.map((tag) => (
             <button
               type="button"
               key={tag}
               onClick={() => toggleTag(tag)}
-              className={`px-4 py-2 rounded-lg text-sm ${selectedTags.includes(tag) ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+              className={`px-4 py-2 rounded-lg text-sm ${
+                selectedTags.includes(tag)
+                  ? "bg-blue-500 text-white"
+                  : "bg-gray-200"
+              }`}
             >
               {tag}
             </button>
@@ -364,7 +448,9 @@ export function CreatePost({ onSubmit }: CreatePostProps) {
       </div>
 
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Attachments</label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Attachments
+        </label>
         <input
           type="file"
           multiple
@@ -374,9 +460,16 @@ export function CreatePost({ onSubmit }: CreatePostProps) {
         />
         <div className="mt-2 flex gap-2">
           {attachments.map((file, index) => (
-            <div key={index} className="flex items-center gap-2 text-sm text-gray-600">
+            <div
+              key={index}
+              className="flex items-center gap-2 text-sm text-gray-600"
+            >
               <span>{file.name}</span>
-              <button type="button" onClick={() => removeAttachment(index)} className="text-red-500 hover:text-red-700">
+              <button
+                type="button"
+                onClick={() => removeAttachment(index)}
+                className="text-red-500 hover:text-red-700"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -397,7 +490,7 @@ export function CreatePost({ onSubmit }: CreatePostProps) {
           disabled={isSubmitting}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:bg-gray-300"
         >
-          {isSubmitting ? <Loader className="w-5 h-5 animate-spin" /> : 'Post'}
+          {isSubmitting ? <Loader className="w-5 h-5 animate-spin" /> : "Post"}
         </button>
       </div>
     </form>
