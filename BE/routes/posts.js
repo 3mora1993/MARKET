@@ -89,6 +89,10 @@ router.post("/", upload.array("attachment", 5), async (req, res) => {
     // Save the new post to the database
     await newPost.save();
 
+    // Emit the new post to connected clients via Socket.IO
+    const io = req.app.get("io"); // Access the `io` instance set in server.js
+    io.emit("new-post", newPost); // Emit the event to all connected clients
+
     // Respond with the created post
     res.status(201).json(newPost);
   } catch (error) {
@@ -113,6 +117,16 @@ router.post("/", upload.array("attachment", 5), async (req, res) => {
     res
       .status(500)
       .json({ message: "Internal server error", error: error.message });
+  }
+});
+
+// GET route to fetch all posts
+router.get("/", async (req, res) => {
+  try {
+    const posts = await Post.find(); // Fetch all posts from the database
+    res.status(200).json(posts); // Send the posts as a JSON response
+  } catch (error) {
+    res.status(500).json({ error: error.message }); // Handle errors
   }
 });
 

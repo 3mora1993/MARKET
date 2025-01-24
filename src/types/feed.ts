@@ -1,4 +1,5 @@
-export interface Post {
+// In your types/feed.ts
+export type Post = {
   id: string;
   authorId: string;
   author: {
@@ -7,21 +8,27 @@ export interface Post {
     role: string;
   };
   content: string;
-  attachments: Attachment[];
+  attachments: Array<{
+    id: string;
+    type: 'image' | 'document';
+    url: string;
+    name: string;
+    size: string;
+    mimeType: string;
+  }>;
   likes: number;
   comments: number;
   shares: number;
   bookmarks: number;
-  isBookmarked?: boolean;
+  type: 'product' | 'update'; // Allow "product" or "update" only
   createdAt: string;
-}
-
-export interface Attachment {
-  id: string;
-  type: 'image' | 'document';
-  url: string;
-  name: string;
-  size?: string;
-  mimeType?: string;
-  thumbnailUrl?: string;
-}
+  productDetails?: {  // productDetails is optional
+    name: string;
+    category: string;
+    price: { min: number; max: number };
+    moq: number;
+    stock: number;
+    expiryDate?: string;
+    tags: string[];
+  };
+};

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Breadcrumb } from '../components/navigation/Breadcrumb';
 import { FilterBar } from '../components/filters/FilterBar';
@@ -8,109 +8,64 @@ import { CreatePost } from '../components/feed/CreatePost';
 import { PostCard } from '../components/feed/PostCard';
 import { Megaphone, TrendingUp, Users, Globe2, ArrowRight } from 'lucide-react';
 import type { Post } from '../types/feed';
-
-// Mock data for posts
-const MOCK_POSTS: Post[] = [
-  {
-    id: '1',
-    authorId: 'u1',
-    author: {
-      name: 'John Smith',
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200',
-      role: 'Supplier'
-    },
-    content: 'Excited to announce our new line of organic products! Check out these samples from our latest production batch.',
-    attachments: [
-      {
-        id: 'a1',
-        type: 'image',
-        url: 'https://images.unsplash.com/photo-1551462147-ff29053bfc14?auto=format&fit=crop&q=80&w=800',
-        name: 'Product Sample 1'
-      },
-      {
-        id: 'a2',
-        type: 'image',
-        url: 'https://images.unsplash.com/photo-1612966948332-ea436faa4ef5?auto=format&fit=crop&q=80&w=800',
-        name: 'Product Sample 2'
-      }
-    ],
-    likes: 24,
-    comments: 8,
-    shares: 3,
-    createdAt: '2024-03-20T10:00:00Z'
-  },
-  {
-    id: '2',
-    authorId: 'u2',
-    author: {
-      name: 'Sarah Wilson',
-      avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=200',
-      role: 'Buyer'
-    },
-    content: 'Looking for sustainable packaging solutions for our food products. Attached our current specifications. Please reach out if you can help!',
-    attachments: [
-      {
-        id: 'a3',
-        type: 'document',
-        url: '#',
-        name: 'Packaging_Requirements.pdf',
-        size: '2.4 MB',
-        mimeType: 'application/pdf'
-      }
-    ],
-    likes: 12,
-    comments: 15,
-    shares: 2,
-    createdAt: '2024-03-19T15:30:00Z'
-  }
-];
+import { api, socketService } from '../services';
 
 export function FeedPage() {
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
-  const [posts, setPosts] = useState<Post[]>(MOCK_POSTS);
-  const categories = ['Electronics', 'Food & Beverage', 'Textiles', 'Machinery'];
+  const [posts, setPosts] = useState<Post[]>([]);
 
-  const handleFilterSelect = (filter: string) => {
-    if (!selectedFilters.includes(filter)) {
-      setSelectedFilters(prev => [...prev, filter]);
-    }
-  };
-
-  const handleFilterRemove = (filter: string) => {
-    setSelectedFilters(prev => prev.filter(f => f !== filter));
-  };
-
-  const handleCreatePost = async (content: string, attachments: File[]) => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Create new post
-    const newPost: Post = {
-      id: Math.random().toString(36).substr(2, 9),
-      authorId: 'current-user',
-      author: {
-        name: 'John Doe',
-        avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200',
-        role: 'Buyer & Supplier'
-      },
-      content,
-      attachments: attachments.map(file => ({
-        id: Math.random().toString(36).substr(2, 9),
-        type: file.type.startsWith('image/') ? 'image' : 'document',
-        url: URL.createObjectURL(file),
-        name: file.name,
-        size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-        mimeType: file.type
-      })),
-      likes: 0,
-      comments: 0,
-      shares: 0,
-      createdAt: new Date().toISOString()
+  // Fetch initial posts and set up WebSocket connection
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        const fetchedPosts = await api.getPosts();
+        setPosts(fetchedPosts);
+      } catch (error) {
+        console.error('Error fetching posts:', error);
+      }
     };
 
-    setPosts(prev => [newPost, ...prev]);
+    fetchPosts();
+
+    // Set up WebSocket connection
+    socketService.connect();
+
+    // Listen for new posts
+    const handleNewPost = (newPost: Post) => {
+      setPosts(prevPosts => [newPost, ...prevPosts]);
+    };
+
+    socketService.on('newPost', handleNewPost);
+
+    // Cleanup
+    return () => {
+      socketService.off('newPost', handleNewPost);
+      socketService.disconnect();
+    };
+  }, []);
+
+  const handleCreatePost = async (data: { type: 'update' | 'product'; content: string; }) => {
+    try {
+      const newPost = await api.createPost({
+        authorId: 'current-user', // Replace with actual user ID
+        author: {
+          name: 'John Doe', // Replace with actual user data
+          avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200',
+          role: 'Buyer & Supplier'
+        },
+        content: data.content,
+        likes: 0,
+        comments: 0,
+        shares: 0,
+        bookmarks: 0
+      });
+
+      // The new post will be added through the WebSocket connection
+    } catch (error) {
+      console.error('Error creating post:', error);
+    }
   };
 
   return (
@@ -133,7 +88,7 @@ export function FeedPage() {
         {/* Left Sidebar */}
         <div className="lg:col-span-3 space-y-6">
           <FilterBar
-            categories={categories}
+            categories={['Electronics', 'Food & Beverage', 'Textiles', 'Machinery']}
             selectedCategory={selectedCategory}
             onCategoryChange={setSelectedCategory}
             onSortChange={(sort) => console.log('Sort by:', sort)}
@@ -152,11 +107,11 @@ export function FeedPage() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">#SmartManufacturing</span>
-                <span className="text-sm text-green-600">+12.5%</span>
+                <span className="text-sm text-green-600">+8.3%</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">#OrganicProducts</span>
-                <span className="text-sm text-green-600">+12.5%</span>
+                <span className="text-sm text-green-600">+15.2%</span>
               </div>
             </div>
           </div>
@@ -206,10 +161,17 @@ export function FeedPage() {
 
           <QuickFilters
             selectedFilters={selectedFilters}
-            onFilterSelect={handleFilterSelect}
-            onFilterRemove={handleFilterRemove}
+            onFilterSelect={(filter) => {
+              if (!selectedFilters.includes(filter)) {
+                setSelectedFilters(prev => [...prev, filter]);
+              }
+            }}
+            onFilterRemove={(filter) => {
+              setSelectedFilters(prev => prev.filter(f => f !== filter));
+            }}
           />
 
+          {/* Posts Feed */}
           <div className="space-y-6 mb-8">
             {posts.map(post => (
               <PostCard key={post.id} post={post} />
